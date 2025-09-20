@@ -106,11 +106,11 @@ async def delete_report(report_id: str, user = Depends(get_current_user)):
     try:
         with open(reports_file, 'r+') as f:
             reports = json.load(f)
-        if email in reports:
-            reports[email] = [r for r in reports[email] if r['id'] != report_id]
-            f.seek(0)
-            json.dump(reports, f)
-            f.truncate()
+            if email in reports:
+                reports[email] = [r for r in reports[email] if r['id'] != report_id]
+                f.seek(0)
+                json.dump(reports, f)
+                f.truncate()
         return {"message": "Report deleted"}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Report not found")
