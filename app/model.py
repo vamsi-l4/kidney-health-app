@@ -4,6 +4,7 @@ from torchvision import transforms, models
 import torch.nn as nn
 import torch.nn.functional as F
 import uuid
+from fastapi import HTTPException
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "../../model/kidney_model.pt")
 
@@ -21,12 +22,23 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        model = models.efficientnet_b0(weights=None)
-        in_features = model.classifier[1].in_features
-        model.classifier[1] = nn.Linear(in_features, 2)
-        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-        model.eval()
-        _model = model
+        try:
+            # Check if model file exists
+            if not os.path.exists(MODEL_PATH):
+                raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+
+            model = models.efficientnet_b0(weights=None)
+            in_features = model.classifier[1].in_features
+            model.classifier[1] = nn.Linear(in_features, 2)
+
+            # Load model with error handling
+            model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+            model.eval()
+            _model = model
+            print(f"✅ Model loaded successfully from {MODEL_PATH}")
+        except Exception as e:
+            print(f"❌ Error loading model: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Model loading failed: {str(e)}")
     return _model
 
 def predict_image_bytes(data: bytes, filename: str = None):
