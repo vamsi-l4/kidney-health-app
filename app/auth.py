@@ -1,7 +1,4 @@
-# server/app/auth.py
-import os
-import json
-import random
+import os, json, random, bcrypt
 from datetime import datetime, timedelta
 import jwt
 from fastapi import HTTPException
@@ -19,22 +16,21 @@ def create_access_token(data: dict, expires_delta: int = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=(expires_delta or ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return token
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def verify_token(token: str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except Exception as e:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def login(email: str, password: str):
     with open(USERS_FILE, 'r') as f:
         users = json.load(f)
-    if email in users and users[email]['password'] == password:
+    if email in users and bcrypt.checkpw(password.encode(), users[email]['password'].encode()):
         token = create_access_token({"sub": email})
-        return {"access_token": token, "token_type": "bearer", "user": users[email]}
+        user = {k: v for k, v in users[email].items() if k != "password"}
+        return {"access_token": token, "token_type": "bearer", "user": user}
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 def register(email: str, password: str, name: str):
@@ -42,12 +38,14 @@ def register(email: str, password: str, name: str):
         users = json.load(f)
         if email in users:
             raise HTTPException(status_code=400, detail="User already exists")
-        users[email] = {"password": password, "name": name}
+        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        users[email] = {"password": hashed, "name": name}
         f.seek(0)
         json.dump(users, f)
         f.truncate()
     token = create_access_token({"sub": email})
-    return {"access_token": token, "token_type": "bearer", "user": users[email]}
+    user = {k: v for k, v in users[email].items() if k != "password"}
+    return {"access_token": token, "token_type": "bearer", "user": user}
 
 def forgot_password(email: str):
     with open(USERS_FILE, 'r') as f:
@@ -56,7 +54,6 @@ def forgot_password(email: str):
         raise HTTPException(status_code=400, detail="User not found")
     otp = str(random.randint(100000, 999999))
     otp_store[email] = otp
-    # In real app, send email with OTP
     print(f"OTP for {email}: {otp}")  # For testing
     return {"message": "OTP sent to email"}
 
@@ -71,7 +68,8 @@ def reset_password(email: str, new_password: str):
         users = json.load(f)
         if email not in users:
             raise HTTPException(status_code=400, detail="User not found")
-        users[email]['password'] = new_password
+        hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        users[email]['password'] = hashed
         f.seek(0)
         json.dump(users, f)
         f.truncate()
