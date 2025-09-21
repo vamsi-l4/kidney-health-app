@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import uuid
 from fastapi import HTTPException
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "../../model/kidney_model.pt")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "../model/kidney_model.pt")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
