@@ -15,10 +15,25 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? ['https://kidney-health-app.vercel.app']  // Update with your production domain
+  : ['http://localhost:5173', 'http://localhost:3000'];  // Development origins
+
 app.use(cors({
-  origin: "*", // Change in production
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS policy violation'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -50,20 +65,43 @@ const upload = multer({
 });
 
 // Configuration
-const SECRET_KEY = process.env.SECRET_KEY || "change-me-please";
+const SECRET_KEY = process.env.SECRET_KEY || "your-256-bit-secret";  // Change in production
 const ALGORITHM = process.env.ALGORITHM || "HS256";
 const ACCESS_TOKEN_EXPIRE_MINUTES = parseInt(process.env.ACCESS_TOKEN_EXPIRE_MINUTES || "120");
+
+// Log config in development only
+if (process.env.NODE_ENV !== 'production') {
+  console.log('Server running in development mode');
+}
 
 const USERS_FILE = path.join(__dirname, 'app', 'users.json');
 const REPORTS_FILE = path.join(__dirname, 'app', 'user_reports.json');
 
-// Ensure data files exist
-if (!fs.existsSync(USERS_FILE)) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify({}));
+// Ensure data directories exist
+const dataDir = path.dirname(USERS_FILE);
+if (!fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (error) {
+    console.error('Error creating data directory:', error);
+    throw new Error('Could not create data directory');
+  }
 }
 
-if (!fs.existsSync(REPORTS_FILE)) {
-  fs.writeFileSync(REPORTS_FILE, JSON.stringify({}));
+// Ensure data files exist
+try {
+  if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify({}, null, 2));
+    console.log('Created users file:', USERS_FILE);
+  }
+
+  if (!fs.existsSync(REPORTS_FILE)) {
+    fs.writeFileSync(REPORTS_FILE, JSON.stringify({}, null, 2));
+    console.log('Created reports file:', REPORTS_FILE);
+  }
+} catch (error) {
+  console.error('Error initializing data files:', error);
+  throw new Error('Could not initialize data files');
 }
 
 // OTP store (in production, use Redis or database)
@@ -86,6 +124,8 @@ function verifyToken(token) {
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+  console.log('authHeader:', authHeader);
+  console.log('token:', token);
 
   if (!token) {
     return res.status(401).json({ detail: 'Access token required' });
@@ -96,6 +136,7 @@ function authenticateToken(req, res, next) {
     req.user = decoded;
     next();
   } catch (error) {
+    console.log('verify error:', error.message);
     return res.status(401).json({ detail: 'Invalid token' });
   }
 }
@@ -117,21 +158,51 @@ app.get('/welcome', (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-
-    if (users[email] && await bcrypt.compare(password, users[email].password)) {
-      const token = createAccessToken({ sub: email });
-      const { password: _, ...userWithoutPassword } = users[email];
-      res.json({
-        access_token: token,
-        token_type: 'bearer',
-        user: userWithoutPassword
+    
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ 
+        detail: 'Email and password are required',
+        fields: {
+          email: !email ? 'Email is required' : null,
+          password: !password ? 'Password is required' : null
+        }
       });
-    } else {
-      res.status(401).json({ detail: 'Invalid credentials' });
     }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ detail: 'Invalid email format' });
+    }
+
+    let users;
+    try {
+      users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    } catch (err) {
+      console.error('Error reading users file:', err);
+      return res.status(500).json({ detail: 'Error accessing user data' });
+    }
+
+    if (!users[email]) {
+      return res.status(401).json({ detail: 'Invalid credentials' });
+    }
+
+    const validPassword = await bcrypt.compare(password, users[email].password);
+    if (!validPassword) {
+      return res.status(401).json({ detail: 'Invalid credentials' });
+    }
+
+    const token = createAccessToken({ sub: email });
+    const { password: _, ...userWithoutPassword } = users[email];
+    
+    res.json({
+      access_token: token,
+      token_type: 'bearer',
+      user: userWithoutPassword
+    });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ detail: 'Internal server error' });
   }
 });
@@ -140,7 +211,41 @@ app.post('/api/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
-    const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    // Validate required fields
+    if (!email || !password || !name) {
+      return res.status(400).json({
+        detail: 'All fields are required',
+        fields: {
+          email: !email ? 'Email is required' : null,
+          password: !password ? 'Password is required' : null,
+          name: !name ? 'Name is required' : null
+        }
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ detail: 'Invalid email format' });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ detail: 'Password must be at least 8 characters long' });
+    }
+
+    // Validate name
+    if (name.length < 2) {
+      return res.status(400).json({ detail: 'Name must be at least 2 characters long' });
+    }
+
+    let users;
+    try {
+      users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    } catch (err) {
+      console.error('Error reading users file:', err);
+      return res.status(500).json({ detail: 'Error accessing user data' });
+    }
 
     if (users[email]) {
       return res.status(400).json({ detail: 'User already exists' });
@@ -149,10 +254,16 @@ app.post('/api/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     users[email] = {
       password: hashedPassword,
-      name: name
+      name: name,
+      createdAt: new Date().toISOString()
     };
 
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    try {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    } catch (err) {
+      console.error('Error writing users file:', err);
+      return res.status(500).json({ detail: 'Error saving user data' });
+    }
 
     const token = createAccessToken({ sub: email });
     const { password: _, ...userWithoutPassword } = users[email];
@@ -163,6 +274,7 @@ app.post('/api/register', async (req, res) => {
       user: userWithoutPassword
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ detail: 'Internal server error' });
   }
 });
@@ -338,11 +450,31 @@ app.use('*', (req, res) => {
   res.status(404).json({ detail: 'Endpoint not found' });
 });
 
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit in development to help debugging
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+});
+
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🎉 Welcome: http://localhost:${PORT}/welcome`);
+}).on('error', (error) => {
+  console.error('Server startup error:', error);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Closing server...');
+  server.close(() => {
+    console.log('Server closed.');
+    process.exit(0);
+  });
 });
 
 export default app;

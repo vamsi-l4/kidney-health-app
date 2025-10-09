@@ -50,10 +50,12 @@ async function testServer() {
     console.log('✅ Forgot Password:', forgotResponse.data);
 
     console.log('\n🎉 All tests passed! Server is working correctly.');
+    process.exit(0);
 
   } catch (error) {
     console.error('\n❌ Test failed:', error.response?.data || error.message);
     console.log('\n💡 Make sure the server is running with: npm start');
+    process.exit(1);
   }
 }
 
