@@ -1,30 +1,32 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import router as api_router
-import os
 import logging
-from fastapi import Request
 
 app = FastAPI(title="Kidney Stone Predictor API")
 
-# Set up logger
+# ✅ Logging setup
 logger = logging.getLogger("uvicorn.access")
 if not logger.hasHandlers():
     logging.basicConfig(level=logging.INFO)
 
-# ✅ CORS
+# ✅ CORS (Vercel + Localhost + Render-safe)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://kidneystone-blond.vercel.app"],  # Specific origins for development and production
+    allow_origins=[
+        "http://localhost:5173",
+        "https://kidneystone-blond.vercel.app",
+        "https://kidney-health-app.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ Routers
+# ✅ Include routers
 app.include_router(api_router, prefix="/api")
 
-# Add welcome endpoint with logging
+# ✅ Test endpoint
 @app.get("/welcome")
 async def welcome(request: Request):
     logger.info(f"Request received: {request.method} {request.url.path}")
