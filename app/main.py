@@ -15,7 +15,7 @@ if not logger.hasHandlers():
 # ✅ CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Specific origin for development
+    allow_origins=["http://localhost:5173", "https://kidneystone-blond.vercel.app"],  # Specific origins for development and production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
