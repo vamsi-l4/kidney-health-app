@@ -10,3 +10,9 @@ venv/
 
 # Environment variables
 .env
+.env.example
+# Project-specific ignores
+server/app/uploads/
+server/app/reports/
+server/app/users.json
+server/app/user_reports.json

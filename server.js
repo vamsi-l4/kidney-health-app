@@ -15,20 +15,12 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? ['https://kidney-health-app.vercel.app']  // Update with your production domain
-  : ['http://localhost:5173', 'http://localhost:3000'];  // Development origins
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? 'https://kidney-health-app.vercel.app'  // Update with your production domain
+  : 'http://localhost:5173';  // Development origin
 
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, curl)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS policy violation'), false);
-    }
-    return callback(null, true);
-  },
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -195,7 +187,7 @@ app.post('/api/login', async (req, res) => {
 
     const token = createAccessToken({ sub: email });
     const { password: _, ...userWithoutPassword } = users[email];
-    
+
     res.json({
       access_token: token,
       token_type: 'bearer',

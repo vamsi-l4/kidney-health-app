@@ -1,7 +1,10 @@
-import os, json, random, bcrypt
+import os, json, random
 from datetime import datetime, timedelta
 import jwt
 from fastapi import HTTPException
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USERS_FILE = os.path.join(BASE_DIR, 'users.json')
@@ -27,7 +30,7 @@ def verify_token(token: str):
 def login(email: str, password: str):
     with open(USERS_FILE, 'r') as f:
         users = json.load(f)
-    if email in users and bcrypt.checkpw(password.encode(), users[email]['password'].encode()):
+    if email in users and pwd_context.verify(password, users[email]['password']):
         token = create_access_token({"sub": email})
         user = {k: v for k, v in users[email].items() if k != "password"}
         return {"access_token": token, "token_type": "bearer", "user": user}
@@ -38,7 +41,7 @@ def register(email: str, password: str, name: str):
         users = json.load(f)
         if email in users:
             raise HTTPException(status_code=400, detail="User already exists")
-        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        hashed = pwd_context.hash(password)
         users[email] = {"password": hashed, "name": name}
         f.seek(0)
         json.dump(users, f)
@@ -68,7 +71,7 @@ def reset_password(email: str, new_password: str):
         users = json.load(f)
         if email not in users:
             raise HTTPException(status_code=400, detail="User not found")
-        hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        hashed = pwd_context.hash(new_password)
         users[email]['password'] = hashed
         f.seek(0)
         json.dump(users, f)
