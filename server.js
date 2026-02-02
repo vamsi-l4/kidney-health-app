@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 8000;
 
 // Middleware
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? 'https://kidney-health-app.vercel.app'  // Update with your production domain
+  ? 'https://kidneystone-blond.vercel.app'  // Update with your production domain
   : 'http://localhost:5173';  // Development origin
 
 app.use(cors({
