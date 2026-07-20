@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import router as api_router
@@ -11,14 +13,13 @@ if not logger.hasHandlers():
     logging.basicConfig(level=logging.INFO)
 
 # ✅ CORS (Vercel + Localhost + Render-safe)
+default_origins = "http://localhost:5173,https://kidneystone-blond.vercel.app"
+allowed_origins = [origin.strip().rstrip("/") for origin in os.getenv("CORS_ORIGINS", default_origins).split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://kidneystone-blond.vercel.app",
-        "https://kidney-health-app.onrender.com"
-    ],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

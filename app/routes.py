@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.security import HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uuid, os, json
 from . import model as model_module
 from . import auth
@@ -14,13 +14,13 @@ def get_current_user(token: str = Depends(bearer)):
 
 # ✅ Schemas
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    name: str
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
+    name: str = Field(max_length=100)
 
 class ForgotPasswordRequest(BaseModel):
     email: str
@@ -51,8 +51,10 @@ async def predict(file: UploadFile = File(...)):
         contents = await file.read()
         result = model_module.predict_image_bytes(contents, filename=file.filename)
         return {"filename": file.filename, "prediction": result}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Unable to analyze this image") from e
 
 
 @router.post("/login")

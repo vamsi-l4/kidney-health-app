@@ -77,5 +77,15 @@
     "password": "$2a$10$KiHsUx7kzKL094fUq/qWnOI6EpGFXsb8jdiKMwpoqGVkbY4Ybb8OW",
     "name": "New User",
     "createdAt": "2025-11-09T10:32:31.373Z"
+  },
+  "krishnavamsim04@gmail.com": {
+    "password": "$2a$10$sILQx6zXgBY3QuKq6.9n6eoi4T.Gc7d4tPrkupobVSNCZhAK2D6tu",
+    "name": "vamsi",
+    "createdAt": "2026-02-02T08:19:11.273Z"
+  },
+  "krishnavamsi3400@gmail.com": {
+    "password": "$pbkdf2-sha256$29000$AWCMsTZm7P3/v1cq5byXMg$FH4zMaDxHhRmrNwszdbZ4iM06v8cfLGdRSmiNnPZK9o",
+    "name": "vamsi",
+    "createdAt": "2026-07-20T08:55:20.427352+00:00"
   }
 }

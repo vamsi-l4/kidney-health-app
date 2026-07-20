@@ -35,9 +35,9 @@ def get_model():
             model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
             model.eval()
             _model = model
-            print(f"✅ Model loaded successfully from {MODEL_PATH}")
+            print(f"Model loaded successfully from {MODEL_PATH}")
         except Exception as e:
-            print(f"❌ Error loading model: {str(e)}")
+            print(f"Model loading error: {e}")
             raise HTTPException(status_code=500, detail=f"Model loading failed: {str(e)}")
     return _model
 
