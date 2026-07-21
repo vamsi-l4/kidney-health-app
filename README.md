@@ -57,6 +57,18 @@ See `model/train.py` for training a classifier using transfer learning on your d
 - Adjust CORS origins in production.
 - For heavy inference, consider GPU or ONNX Runtime.
 
+## Reset application data
+
+To remove every locally stored account and saved report, run this command from
+the `server` directory:
+
+```bash
+python reset_data.py
+```
+
+For Render, open the service shell, run the same command, then restart or
+redeploy the service. This is irreversible.
+
 ## Connecting Frontend
 
 Set your React app `.env`:
