@@ -34,9 +34,14 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 class ReportRequest(BaseModel):
-    name: str
+    name: str = Field(max_length=100)
     prediction: dict
-    createdAt: str
+    createdAt: str = Field(max_length=50)
+    age: str | None = Field(default=None, max_length=3)
+    gender: str | None = Field(default=None, max_length=30)
+    email: str | None = Field(default=None, max_length=254)
+    phone: str | None = Field(default=None, max_length=30)
+    address: str | None = Field(default=None, max_length=300)
 
 
 # ✅ Routes
@@ -117,7 +122,7 @@ async def add_report(report: ReportRequest, user=Depends(get_current_user)):
     if email not in reports:
         reports[email] = []
 
-    report_data = report.dict()
+    report_data = report.model_dump(exclude_none=True)
     report_data["id"] = str(uuid.uuid4())
     reports[email].append(report_data)
 
